@@ -1,0 +1,10 @@
+<launch>
+
+    <rosparam file="$(find piarm_pnp)/config/color_config.yaml" command="load" ns="pnp_colors"/>
+
+    <node pkg="piarm_pnp" name="target_locater" type="target_locater.py"/>
+
+    <node name="rviz" pkg="rviz" type="rviz" args="-d $(find piarm_pnp)/config/rviz_config.rviz"/>
+
+
+</launch>

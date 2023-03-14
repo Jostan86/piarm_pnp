@@ -1,0 +1,5 @@
+piarm_pnp/MoveTarget target
+---
+piarm_pnp/ArmPosition servo_angles
+float64 pitch
+bool success
