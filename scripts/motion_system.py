@@ -26,9 +26,9 @@ class MotionSystem:
         # self.x_pid = PID.PID(P=0.06, I=0.005, D=0)
         # self.y_pid = PID.PID(P=0.00001, I=0, D=0)
         # self.z_pid = PID.PID(P=0.00003, I=0, D=0)
-        self.x_pid = PID.PID(P=0.03, I=0.005, D=0)
-        self.y_pid = PID.PID(P=0.000005, I=0, D=0)
-        self.z_pid = PID.PID(P=0.00001, I=0, D=0)
+        self.x_pid = PID.PID(P=0.05, I=0.005, D=0)
+        self.y_pid = PID.PID(P=0.000007, I=0, D=0)
+        self.z_pid = PID.PID(P=0.00002, I=0, D=0)
 
         rospy.init_node('motion_system', log_level=rospy.DEBUG)
 
@@ -145,7 +145,7 @@ class MotionSystem:
 
         servo_msg = self.ik_srv_connection(ik_request)
         if servo_msg.success:
-            bus_servo_control.set_servos(self.joints_pub, 20, ((3, servo_msg.servo_angles.servo3),
+            bus_servo_control.set_servos(self.joints_pub, 30, ((3, servo_msg.servo_angles.servo3),
                                                                (4, servo_msg.servo_angles.servo4),
                                                                (5, servo_msg.servo_angles.servo5),
                                                                (6, self.x_dis)))
@@ -153,7 +153,7 @@ class MotionSystem:
 
 if __name__ == '__main__':
 
-    tracker = MotionSystem()
+    motion_system = MotionSystem()
 
     try:
         rospy.spin()

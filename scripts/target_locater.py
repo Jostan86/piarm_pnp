@@ -1,10 +1,8 @@
 #!/usr/bin/env python3
 
-import sys
 import cv2
 import math
 import rospy
-import numpy as np
 from cv_bridge import CvBridge
 
 from piarm_pnp.srv import SetTarget, SetTargetResponse

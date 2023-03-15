@@ -45,8 +45,8 @@ class MotionSystem:
         self.pitch_pid = PID.PID(P=0.03, I=0, D=0)
         self.roll_pid = PID.PID(P=0.03, I=0, D=0)
 
-
-        rospy.init_node('joy_control', log_level=rospy.DEBUG)
+        self.prev_servo_msg = False
+        rospy.init_node('joy_control')
 
         # Setup joint position publisher
         self.joints_pub = rospy.Publisher('/servo_controllers/port_id_1/multi_id_pos_dur', MultiRawIdPosDur,
@@ -164,13 +164,28 @@ class MotionSystem:
 
         # If the position is reachable, write the servo values to the servos
         if servo_msg.success:
-            bus_servo_control.set_servos(self.joints_pub, 333, ((1, self.jaw_pos),
+            if self.prev_servo_msg:
+                if self.prev_servo_msg.servo_angles.servo4 - servo_msg.servo_angles.servo4 > 20:
+                    servo_msg.servo_angles.servo4 = self.prev_servo_msg.servo_angles.servo4 - 20
+                if self.prev_servo_msg.servo_angles.servo5 - servo_msg.servo_angles.servo5 > 20:
+                    servo_msg.servo_angles.servo5 = self.prev_servo_msg.servo_angles.servo5 - 20
+                if self.prev_servo_msg.servo_angles.servo3 - servo_msg.servo_angles.servo3 > 20:
+                    servo_msg.servo_angles.servo3 = self.prev_servo_msg.servo_angles.servo3 - 20
+
+                if self.prev_servo_msg.servo_angles.servo4 - servo_msg.servo_angles.servo4 < -20:
+                    servo_msg.servo_angles.servo4 = self.prev_servo_msg.servo_angles.servo4 + 20
+                if self.prev_servo_msg.servo_angles.servo5 - servo_msg.servo_angles.servo5 < -20:
+                    servo_msg.servo_angles.servo5 = self.prev_servo_msg.servo_angles.servo5 + 20
+                if self.prev_servo_msg.servo_angles.servo3 - servo_msg.servo_angles.servo3 < -20:
+                    servo_msg.servo_angles.servo3 = self.prev_servo_msg.servo_angles.servo3 + 20
+
+            bus_servo_control.set_servos(self.joints_pub, 90, ((1, self.jaw_pos),
                                                                  (2, self.gripper_roll),
                                                                  (3, servo_msg.servo_angles.servo3),
                                                                  (4, servo_msg.servo_angles.servo4),
                                                                  (5, servo_msg.servo_angles.servo5),
                                                                  (6, int(self.base_pos))))
-
+            self.prev_servo_msg = servo_msg
             # If the inverse kinematics was successful, then save the current values, if not, then reset them to the
             # previous values
             self.prev_jaw_pos = self.jaw_pos
@@ -191,7 +206,7 @@ class MotionSystem:
 if __name__ == '__main__':
 
     tracker = MotionSystem()
-    rate = rospy.Rate(3)
+    rate = rospy.Rate(10)
     try:
         # rospy.spin()
         while not rospy.is_shutdown():
