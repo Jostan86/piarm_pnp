@@ -7,6 +7,6 @@
 float64 target_x            # x location to move arm to
 float64 target_y            # y location to move arm to
 float64 target_z            # z location to move arm to
-int32 target_pitch          # pitch of gripper to move arm to
-int32 pitch_lower_limit     # lower limit of allowable pitch, should be a smaller (or more negative) number than pitch
-int32 pitch_upper_limit     # upper limit of allowable pitch
+float64 target_pitch          # pitch of gripper to move arm to
+float64 pitch_lower_limit     # lower limit of allowable pitch, should be a smaller (or more negative) number than pitch
+float64 pitch_upper_limit     # upper limit of allowable pitch

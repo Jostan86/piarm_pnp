@@ -4,6 +4,8 @@
 
     <node pkg="piarm_pnp" name="target_locater" type="target_locater.py"/>
 
+    <node pkg="piarm_pnp" name="motion_system" type="motion_system.py" required="true"/>
+
     <node name="rviz" pkg="rviz" type="rviz" args="-d $(find piarm_pnp)/config/rviz_config.rviz"/>
 
 
