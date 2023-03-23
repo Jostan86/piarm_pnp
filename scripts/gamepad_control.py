@@ -15,7 +15,7 @@ from armpi_fpv import bus_servo_control
 
 
 
-class MotionSystem:
+class GamepadControl:
     def __init__(self):
 
         # Coordinate Initial Values
@@ -25,8 +25,8 @@ class MotionSystem:
         self.gripper_roll = 500
         self.gripper_pitch = -90
         self.jaw_pos = 200
-        # self.jaw_pos_actual = 200
 
+        # Variables to hold previous commanded positions to prevent too fast of movements
         self.prev_jaw_pos = self.jaw_pos
         self.prev_gripper_roll = self.gripper_roll
         self.prev_x_pos = self.x_pos
@@ -34,18 +34,12 @@ class MotionSystem:
         self.prev_gripper_pitch = self.gripper_pitch
         self.prev_base_pos = self.base_pos
 
-        # Setup PID for each axis
-        # self.x_pid = PID.PID(P=0.06, I=0.005, D=0)
-        # self.y_pid = PID.PID(P=0.00001, I=0, D=0)
-        # self.z_pid = PID.PID(P=0.00003, I=0, D=0)
-        self.base_pid = PID.PID(P=0.03, I=0, D=0)
-        self.x_pid = PID.PID(P=0.000005, I=0, D=0)
-        self.y_pid = PID.PID(P=0.00001, I=0, D=0)
-        self.jaw_pid = PID.PID(P=0.03, I=0, D=0)
-        self.pitch_pid = PID.PID(P=0.03, I=0, D=0)
-        self.roll_pid = PID.PID(P=0.03, I=0, D=0)
+        # Set max speed
+        self.max_speed = 20
 
-        self.prev_servo_msg = False
+        self.prev_servo_msg = None
+        self.first_servo_msg_recieved = False
+
         rospy.init_node('joy_control')
 
         # Setup joint position publisher
@@ -64,12 +58,14 @@ class MotionSystem:
 
         # Wait a second then move to the initial position
         rospy.sleep(1)
-
         self.initMove()
 
+        # Setup a service that resets the arm to the initial position
         self.reset_service = rospy.Service('/reset_arm_position', Empty, self.reset)
 
+        # Subscribe to the controller topic
         self.joy_sub = rospy.Subscriber('/joy', Joy, self.joy_callback)
+
 
         self.servo_state_sub = rospy.Subscriber('/servo_controllers/port_id_1/servo_states', ServoStateList,
                                                 self.update_servo_pos_actual)
@@ -109,13 +105,8 @@ class MotionSystem:
 
         if delay:
             rospy.sleep(2)
-
     def update_servo_pos_actual(self, servo_state_msg):
-        for servo_state in servo_state_msg.servo_states:
-            if servo_state.id == 1:
-                self.jaw_pid.update(servo_state.position)
-                # if servo_state.id == 2:
-                # self.
+        ...
 
     def joy_callback(self, joy_msg):
         base_rotate = joy_msg.axes[6] # D pad right left
@@ -140,14 +131,18 @@ class MotionSystem:
         in_min = 1
         in_max = -1
         out_max = 550
-        out_min = 0
+        out_min = 200
         jaw_position_mapped = (jaw_position - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
-
-
-        self.jaw_pid.SetPoint = jaw_position_mapped
-        d_jaw_pos = self.jaw_pid.output
-        self.jaw_pos += int(d_jaw_pos)
-
+        self.jaw_pos = jaw_position_mapped
+    def set_max_speed(self, new_angle, prev_angle):
+        if prev_angle - new_angle > self.max_speed:
+            new_angle = prev_angle - self.max_speed
+            return new_angle
+        elif new_angle - prev_angle > self.max_speed:
+            new_angle = prev_angle + self.max_speed
+            return new_angle
+        else:
+            return new_angle
 
     def publish_move(self):
         # Setup inverse kinematics request
@@ -159,33 +154,35 @@ class MotionSystem:
         ik_request.target.pitch_upper_limit = self.gripper_pitch + 1
         ik_request.target.pitch_lower_limit = self.gripper_pitch - 1
 
+
         # Get servo positions from inverse kinematic service
         servo_msg = self.ik_srv_connection(ik_request)
 
+        # If this is the first message, set the prev to be equat to it
+        if not self.first_servo_msg_recieved:
+            self.prev_servo_msg = servo_msg
+            self.first_servo_msg_recieved = True
+
         # If the position is reachable, write the servo values to the servos
         if servo_msg.success:
-            if self.prev_servo_msg:
-                if self.prev_servo_msg.servo_angles.servo4 - servo_msg.servo_angles.servo4 > 20:
-                    servo_msg.servo_angles.servo4 = self.prev_servo_msg.servo_angles.servo4 - 20
-                if self.prev_servo_msg.servo_angles.servo5 - servo_msg.servo_angles.servo5 > 20:
-                    servo_msg.servo_angles.servo5 = self.prev_servo_msg.servo_angles.servo5 - 20
-                if self.prev_servo_msg.servo_angles.servo3 - servo_msg.servo_angles.servo3 > 20:
-                    servo_msg.servo_angles.servo3 = self.prev_servo_msg.servo_angles.servo3 - 20
+            # Set the max speed for the arm controlled by the inverse kinematics
+            servo_msg.servo_angles.servo3 = self.set_max_speed(servo_msg.servo_angles.servo3,
+                                                    self.prev_servo_msg.servo_angles.servo3)
+            servo_msg.servo_angles.servo4 = self.set_max_speed(servo_msg.servo_angles.servo4,
+                                                    self.prev_servo_msg.servo_angles.servo4)
+            servo_msg.servo_angles.servo5 = self.set_max_speed(servo_msg.servo_angles.servo5,
+                                                               self.prev_servo_msg.servo_angles.servo5)
 
-                if self.prev_servo_msg.servo_angles.servo4 - servo_msg.servo_angles.servo4 < -20:
-                    servo_msg.servo_angles.servo4 = self.prev_servo_msg.servo_angles.servo4 + 20
-                if self.prev_servo_msg.servo_angles.servo5 - servo_msg.servo_angles.servo5 < -20:
-                    servo_msg.servo_angles.servo5 = self.prev_servo_msg.servo_angles.servo5 + 20
-                if self.prev_servo_msg.servo_angles.servo3 - servo_msg.servo_angles.servo3 < -20:
-                    servo_msg.servo_angles.servo3 = self.prev_servo_msg.servo_angles.servo3 + 20
-
+            # Write the angles to the servos
             bus_servo_control.set_servos(self.joints_pub, 90, ((1, self.jaw_pos),
                                                                  (2, self.gripper_roll),
                                                                  (3, servo_msg.servo_angles.servo3),
                                                                  (4, servo_msg.servo_angles.servo4),
                                                                  (5, servo_msg.servo_angles.servo5),
                                                                  (6, int(self.base_pos))))
+            # Save the previous servo message
             self.prev_servo_msg = servo_msg
+
             # If the inverse kinematics was successful, then save the current values, if not, then reset them to the
             # previous values
             self.prev_jaw_pos = self.jaw_pos
@@ -205,12 +202,12 @@ class MotionSystem:
 
 if __name__ == '__main__':
 
-    tracker = MotionSystem()
+    # Initate the controller and set it to publish to the arm at 10Hz
+    controller = GamepadControl()
     rate = rospy.Rate(10)
     try:
-        # rospy.spin()
         while not rospy.is_shutdown():
-            tracker.publish_move()
+            controller.publish_move()
             rate.sleep()
     except rospy.ROSInterruptException:
         rospy.loginfo("Shutting down")

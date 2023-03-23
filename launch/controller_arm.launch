@@ -1,0 +1,17 @@
+<launch>
+<!--  This launch file starts the publishing of the 360 controller commands to the /joy topic-->
+  <arg name="joy_dev" default="/dev/input/js1"/>
+  <arg name="linear_scale" default="1"/>
+  <arg name="angular_scale" default="1"/>
+
+  <rosparam param="joy_node/dev">"/dev/input/js1"</rosparam>
+
+  <include file="$(find teleop_twist_joy)/launch/teleop.launch">
+    <arg name="joy_dev" value="$(arg joy_dev)"/>
+  </include>
+
+  <param name="controller360/linear_scale" type="double" value="$(arg linear_scale)" />
+  <param name="controller360/angular_scale" type="double" value="$(arg angular_scale)" />
+
+
+</launch>
