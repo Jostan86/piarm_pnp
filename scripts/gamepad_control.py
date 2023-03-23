@@ -117,8 +117,8 @@ class GamepadControl:
         jaw_position = joy_msg.axes[2] # Left trigger
 
         d_base = base_rotate * 5
-        dx = in_out_move / 500
-        dy = up_down_move / 500
+        dx = in_out_move / 800
+        dy = up_down_move / 800
         d_roll = gripper_roll * 5
         d_pitch = gripper_pitch / 2
 
@@ -134,12 +134,13 @@ class GamepadControl:
         out_min = 200
         jaw_position_mapped = (jaw_position - in_min) * (out_max - out_min) / (in_max - in_min) + out_min
         self.jaw_pos = jaw_position_mapped
-    def set_max_speed(self, new_angle, prev_angle):
-        if prev_angle - new_angle > self.max_speed:
-            new_angle = prev_angle - self.max_speed
+
+    def set_max_speed(self, new_angle, prev_angle, max_speed):
+        if prev_angle - new_angle > max_speed:
+            new_angle = prev_angle - max_speed
             return new_angle
-        elif new_angle - prev_angle > self.max_speed:
-            new_angle = prev_angle + self.max_speed
+        elif new_angle - prev_angle > max_speed:
+            new_angle = prev_angle + max_speed
             return new_angle
         else:
             return new_angle
@@ -158,7 +159,7 @@ class GamepadControl:
         # Get servo positions from inverse kinematic service
         servo_msg = self.ik_srv_connection(ik_request)
 
-        # If this is the first message, set the prev to be equat to it
+        # If this is the first message, set the prev to be equal to it
         if not self.first_servo_msg_recieved:
             self.prev_servo_msg = servo_msg
             self.first_servo_msg_recieved = True
@@ -167,11 +168,11 @@ class GamepadControl:
         if servo_msg.success:
             # Set the max speed for the arm controlled by the inverse kinematics
             servo_msg.servo_angles.servo3 = self.set_max_speed(servo_msg.servo_angles.servo3,
-                                                    self.prev_servo_msg.servo_angles.servo3)
+                                                    self.prev_servo_msg.servo_angles.servo3, 30)
             servo_msg.servo_angles.servo4 = self.set_max_speed(servo_msg.servo_angles.servo4,
-                                                    self.prev_servo_msg.servo_angles.servo4)
+                                                    self.prev_servo_msg.servo_angles.servo4, 30)
             servo_msg.servo_angles.servo5 = self.set_max_speed(servo_msg.servo_angles.servo5,
-                                                               self.prev_servo_msg.servo_angles.servo5)
+                                                               self.prev_servo_msg.servo_angles.servo5, 10)
 
             # Write the angles to the servos
             bus_servo_control.set_servos(self.joints_pub, 90, ((1, self.jaw_pos),
@@ -198,6 +199,7 @@ class GamepadControl:
             self.y_pos = self.prev_y_pos
             self.gripper_pitch = self.prev_gripper_pitch
             self.base_pos = self.prev_base_pos
+
 
 
 if __name__ == '__main__':
